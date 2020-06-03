@@ -88,16 +88,16 @@
 /* 0 */
 /***/ (function(module, exports) {
 
-function _typeof2(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof2 = function _typeof2(obj) { return typeof obj; }; } else { _typeof2 = function _typeof2(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof2(obj); }
-
 function _typeof(obj) {
-  if (typeof Symbol === "function" && _typeof2(Symbol.iterator) === "symbol") {
+  "@babel/helpers - typeof";
+
+  if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") {
     module.exports = _typeof = function _typeof(obj) {
-      return _typeof2(obj);
+      return typeof obj;
     };
   } else {
     module.exports = _typeof = function _typeof(obj) {
-      return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : _typeof2(obj);
+      return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj;
     };
   }
 
@@ -179,7 +179,7 @@ module.exports = _defineProperty;
 /* 4 */
 /***/ (function(module, exports, __webpack_require__) {
 
-/* WEBPACK VAR INJECTION */(function(module) {function _typeof(obj) { if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
+/* WEBPACK VAR INJECTION */(function(module) {function _typeof(obj) { "@babel/helpers - typeof"; if (typeof Symbol === "function" && typeof Symbol.iterator === "symbol") { _typeof = function _typeof(obj) { return typeof obj; }; } else { _typeof = function _typeof(obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; }; } return _typeof(obj); }
 
 /**
  * Copyright (c) 2014-present, Facebook, Inc.
@@ -315,7 +315,7 @@ var runtime = function (exports) {
     };
   };
 
-  function AsyncIterator(generator) {
+  function AsyncIterator(generator, PromiseImpl) {
     function invoke(method, arg, resolve, reject) {
       var record = tryCatch(generator[method], generator, arg);
 
@@ -326,14 +326,14 @@ var runtime = function (exports) {
         var value = result.value;
 
         if (value && _typeof(value) === "object" && hasOwn.call(value, "__await")) {
-          return Promise.resolve(value.__await).then(function (value) {
+          return PromiseImpl.resolve(value.__await).then(function (value) {
             invoke("next", value, resolve, reject);
           }, function (err) {
             invoke("throw", err, resolve, reject);
           });
         }
 
-        return Promise.resolve(value).then(function (unwrapped) {
+        return PromiseImpl.resolve(value).then(function (unwrapped) {
           // When a yielded Promise is resolved, its final value becomes
           // the .value of the Promise<{value,done}> result for the
           // current iteration.
@@ -351,7 +351,7 @@ var runtime = function (exports) {
 
     function enqueue(method, arg) {
       function callInvokeWithMethodAndArg() {
-        return new Promise(function (resolve, reject) {
+        return new PromiseImpl(function (resolve, reject) {
           invoke(method, arg, resolve, reject);
         });
       }
@@ -388,8 +388,9 @@ var runtime = function (exports) {
   // AsyncIterator objects; they just return a Promise for the value of
   // the final result produced by the iterator.
 
-  exports.async = function (innerFn, outerFn, self, tryLocsList) {
-    var iter = new AsyncIterator(wrap(innerFn, outerFn, self, tryLocsList));
+  exports.async = function (innerFn, outerFn, self, tryLocsList, PromiseImpl) {
+    if (PromiseImpl === void 0) PromiseImpl = Promise;
+    var iter = new AsyncIterator(wrap(innerFn, outerFn, self, tryLocsList), PromiseImpl);
     return exports.isGeneratorFunction(outerFn) ? iter // If outerFn is a generator, return the full iterator.
     : iter.next().then(function (result) {
       return result.done ? result.value : iter.next();
@@ -922,6 +923,7 @@ module.exports = function (module) {
 /***/ (function(module, __webpack_exports__, __webpack_require__) {
 
 "use strict";
+// ESM COMPAT FLAG
 __webpack_require__.r(__webpack_exports__);
 
 // EXTERNAL MODULE: ./node_modules/@babel/runtime/helpers/typeof.js
@@ -1992,13 +1994,30 @@ var CartModule = function ($) {
     });
   };
 
+  var getCorrectSubtotalWithDiscount = function getCorrectSubtotalWithDiscount(pricing) {
+    var localeCode = $('.dr-currency-select').find('option:selected').data('locale').replace('_', '-');
+    var currencySymbol = pricing.formattedSubtotal.replace(/\d+/g, '').replace(/[,.]/g, '');
+    var symbolAsPrefix = pricing.formattedSubtotal.indexOf(currencySymbol) === 0;
+    var formattedPriceWithoutSymbol = pricing.formattedSubtotal.replace(currencySymbol, '');
+    var decimalSymbol = 0 .toLocaleString(localeCode, {
+      minimumFractionDigits: 1
+    })[1];
+    var digits = formattedPriceWithoutSymbol.indexOf(decimalSymbol) > -1 ? formattedPriceWithoutSymbol.split(decimalSymbol).pop().length : 0;
+    var val = pricing.subtotal.value - pricing.discount.value;
+    val = val.toLocaleString(localeCode, {
+      minimumFractionDigits: digits
+    });
+    val = symbolAsPrefix ? currencySymbol + val : val + currencySymbol;
+    return val;
+  };
+
   var renderSummary = function renderSummary(pricing, hasPhysicalProduct) {
     var $discountRow = $('.dr-summary__discount');
     var $shippingRow = $('.dr-summary__shipping');
     var $subtotalRow = $('.dr-summary__discounted-subtotal');
     $discountRow.find('.discount-value').text("-".concat(pricing.formattedDiscount));
     $shippingRow.find('.shipping-value').text(pricing.shippingAndHandling.value === 0 ? drgc_params.translations.free_label : pricing.formattedShippingAndHandling);
-    $subtotalRow.find('.discounted-subtotal-value').text(pricing.formattedSubtotalWithDiscount);
+    $subtotalRow.find('.discounted-subtotal-value').text(pricing.subtotalWithDiscount.value > pricing.subtotal.value ? getCorrectSubtotalWithDiscount(pricing) : pricing.formattedSubtotalWithDiscount);
     if (pricing.discount.value) $discountRow.show();else $discountRow.hide();
     if (hasPhysicalProduct) $shippingRow.show();else $shippingRow.hide();
     return new Promise(function (resolve) {
@@ -2045,6 +2064,7 @@ var CartModule = function ($) {
     disableEditBtnsForBundle: disableEditBtnsForBundle,
     renderSingleLineItem: renderSingleLineItem,
     renderLineItems: renderLineItems,
+    getCorrectSubtotalWithDiscount: getCorrectSubtotalWithDiscount,
     renderSummary: renderSummary,
     fetchFreshCart: fetchFreshCart
   };
@@ -2227,12 +2247,8 @@ var FloatLabel = function () {
 
 
 var DRGooglePay = function ($, translations) {
-  var isConnectionSecure =
-  /*#__PURE__*/
-  function () {
-    var _ref = asyncToGenerator_default()(
-    /*#__PURE__*/
-    regenerator_default.a.mark(function _callee() {
+  var isConnectionSecure = /*#__PURE__*/function () {
+    var _ref = asyncToGenerator_default()( /*#__PURE__*/regenerator_default.a.mark(function _callee() {
       var canPay, details;
       return regenerator_default.a.wrap(function _callee$(_context) {
         while (1) {
@@ -2885,12 +2901,8 @@ var CheckoutModule = function ($) {
     }
   };
 
-  var preselectShippingOption =
-  /*#__PURE__*/
-  function () {
-    var _ref = asyncToGenerator_default()(
-    /*#__PURE__*/
-    regenerator_default.a.mark(function _callee(data) {
+  var preselectShippingOption = /*#__PURE__*/function () {
+    var _ref = asyncToGenerator_default()( /*#__PURE__*/regenerator_default.a.mark(function _callee(data) {
       var $errorMsgElem, defaultShippingOption, shippingOptions, res;
       return regenerator_default.a.wrap(function _callee$(_context) {
         while (1) {
