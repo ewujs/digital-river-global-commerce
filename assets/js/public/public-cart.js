@@ -252,6 +252,21 @@ const CartModule = (($) => {
     });
   };
 
+  const getCorrectSubtotalWithDiscount = (pricing) => {
+    const localeCode = $('.dr-currency-select').find('option:selected').data('locale').replace('_', '-');
+    const currencySymbol = pricing.formattedSubtotal.replace(/\d+/g, '').replace(/[,.]/g, '');
+    const symbolAsPrefix = pricing.formattedSubtotal.indexOf(currencySymbol) === 0;
+    const formattedPriceWithoutSymbol = pricing.formattedSubtotal.replace(currencySymbol, '');
+    const decimalSymbol = (0).toLocaleString(localeCode, { minimumFractionDigits: 1 })[1];
+    const digits = formattedPriceWithoutSymbol.indexOf(decimalSymbol) > -1 ?
+      formattedPriceWithoutSymbol.split(decimalSymbol).pop().length :
+      0;
+    let val = pricing.subtotal.value - pricing.discount.value;
+    val = val.toLocaleString(localeCode, { minimumFractionDigits: digits });
+    val = symbolAsPrefix ? (currencySymbol + val) : (val + currencySymbol);
+    return val;
+  };
+
   const renderSummary = (pricing, hasPhysicalProduct) => {
     const $discountRow = $('.dr-summary__discount');
     const $shippingRow = $('.dr-summary__shipping');
@@ -263,7 +278,11 @@ const CartModule = (($) => {
       drgc_params.translations.free_label :
       pricing.formattedShippingAndHandling
     );
-    $subtotalRow.find('.discounted-subtotal-value').text(pricing.formattedSubtotalWithDiscount);
+    $subtotalRow.find('.discounted-subtotal-value').text(
+      pricing.subtotalWithDiscount.value > pricing.subtotal.value ?
+      getCorrectSubtotalWithDiscount(pricing) :
+      pricing.formattedSubtotalWithDiscount
+    );
 
     if (pricing.discount.value) $discountRow.show();
     else $discountRow.hide();
@@ -316,6 +335,7 @@ const CartModule = (($) => {
     disableEditBtnsForBundle,
     renderSingleLineItem,
     renderLineItems,
+    getCorrectSubtotalWithDiscount,
     renderSummary,
     fetchFreshCart
   };
