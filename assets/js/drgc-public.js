@@ -1271,6 +1271,7 @@ var CheckoutUtils = function ($, params) {
 
     $('div.dr-summary__tax > .item-value').text(formattedTax);
     $('div.dr-summary__total > .total-value').text(formattedOrderTotal);
+    $('.dr-summary').removeClass('dr-loading');
   };
 
   var getEntityCode = function getEntityCode() {
@@ -1347,6 +1348,11 @@ var CheckoutUtils = function ($, params) {
     return jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.errors ? jqXHR.responseJSON.errors.error[0].description : '';
   };
 
+  var setShippingOption = function setShippingOption(option, freeShipping) {
+    var html = "\n      <div class=\"field-radio\">\n        <input type=\"radio\"\n          name=\"selector\"\n          id=\"shipping-option-".concat(option.id, "\"\n          data-cost=\"").concat(option.formattedCost, "\"\n          data-id=\"").concat(option.id, "\"\n          data-desc=\"").concat(option.description, "\"\n        >\n        <label for=\"shipping-option-").concat(option.id, "\">\n          <span>").concat(option.description, "</span>\n          <span class=\"black\">").concat(freeShipping ? drgc_params.translations.free_label : option.formattedCost, "</span>\n        </label>\n      </div>\n    ");
+    $('#checkout-delivery-form .dr-panel-edit__el').append(html);
+  };
+
   return {
     createDisplayItems: createDisplayItems,
     createShippingOptions: createShippingOptions,
@@ -1364,7 +1370,8 @@ var CheckoutUtils = function ($, params) {
     getEntityCode: getEntityCode,
     getCompliance: getCompliance,
     resetFormSubmitButton: resetFormSubmitButton,
-    getAjaxErrorMessage: getAjaxErrorMessage
+    getAjaxErrorMessage: getAjaxErrorMessage,
+    setShippingOption: setShippingOption
   };
 }(jQuery, drgc_params);
 
@@ -2875,26 +2882,9 @@ var CheckoutModule = function ($) {
     $target.text(addressArr.join(', '));
   };
 
-  var setShippingOptions = function setShippingOptions(cart) {
-    var freeShipping = cart.pricing.shippingAndHandling.value === 0;
-    var shippingOptionId = cart.shippingMethod.code;
-    var shippingOptions = cart.shippingOptions.shippingOption || [];
-
-    if (shippingOptions.length) {
-      $.each(shippingOptions, function (index, option) {
-        if ($('#shipping-option-' + option.id).length) return;
-        var html = "\n                    <div class=\"field-radio\">\n                        <input type=\"radio\"\n                            name=\"selector\"\n                            id=\"shipping-option-".concat(option.id, "\"\n                            data-cost=\"").concat(option.formattedCost, "\"\n                            data-id=\"").concat(option.id, "\"\n                            data-desc=\"").concat(option.description, "\"\n                            >\n                        <label for=\"shipping-option-").concat(option.id, "\">\n                            <span>\n                                ").concat(option.description, "\n                            </span>\n                            <span class=\"black\">\n                                ").concat(freeShipping ? drgc_params.translations.free_label : option.formattedCost, "\n                            </span>\n                        </label>\n                    </div>\n                ");
-        $('form#checkout-delivery-form .dr-panel-edit__el').append(html);
-      });
-      $('form#checkout-delivery-form').children().find('input:radio[data-id="' + shippingOptionId + '"]').prop("checked", true);
-    } else {
-      $('form#checkout-delivery-form .dr-panel-edit__el').empty();
-    }
-  };
-
   var preselectShippingOption = /*#__PURE__*/function () {
     var _ref = asyncToGenerator_default()( /*#__PURE__*/regenerator_default.a.mark(function _callee(data) {
-      var $errorMsgElem, defaultShippingOption, shippingOptions, res;
+      var $errorMsgElem, defaultShippingOption, shippingOptions, defaultExists, index, option, res, freeShipping;
       return regenerator_default.a.wrap(function _callee$(_context) {
         while (1) {
           switch (_context.prev = _context.next) {
@@ -2902,47 +2892,67 @@ var CheckoutModule = function ($) {
               $errorMsgElem = $('#checkout-delivery-form > div.dr-err-field');
               defaultShippingOption = data.cart.shippingMethod.code;
               shippingOptions = data.cart.shippingOptions.shippingOption || [];
+              defaultExists = false;
               $('#checkout-delivery-form > button[type="submit"]').prop('disabled', shippingOptions.length === 0);
 
               if (!shippingOptions.length) {
-                _context.next = 18;
+                _context.next = 26;
                 break;
               }
 
               $errorMsgElem.text('').hide();
-              shippingOptions = shippingOptions.map(function (option) {
-                return option.id;
-              }); // If default shipping option is not in the list, then pre-select the 1st one
+              index = 0;
 
-              if (!(shippingOptions.indexOf(defaultShippingOption) === -1)) {
-                _context.next = 15;
+            case 8:
+              if (!(index < shippingOptions.length)) {
+                _context.next = 21;
                 break;
               }
 
-              _context.next = 10;
-              return commerce_api.applyShippingOption(shippingOptions[0]);
+              option = shippingOptions[index];
 
-            case 10:
-              res = _context.sent;
-              checkout_utils.updateSummaryPricing(res.cart);
-              return _context.abrupt("return", res);
+              if (option.id === defaultShippingOption) {
+                defaultExists = true;
+              }
+
+              if (!$('#shipping-option-' + option.id).length) {
+                _context.next = 13;
+                break;
+              }
+
+              return _context.abrupt("continue", 18);
+
+            case 13:
+              _context.next = 15;
+              return commerce_api.applyShippingOption(option.id);
 
             case 15:
-              return _context.abrupt("return", new Promise(function (resolve) {
-                return resolve(data);
-              }));
-
-            case 16:
-              _context.next = 20;
-              break;
+              res = _context.sent;
+              freeShipping = res.cart.pricing.shippingAndHandling.value === 0;
+              checkout_utils.setShippingOption(option, freeShipping);
 
             case 18:
+              index++;
+              _context.next = 8;
+              break;
+
+            case 21:
+              // If default shipping option is not in the list, then pre-select the 1st one
+              if (!defaultExists) {
+                defaultShippingOption = shippingOptions[0].id;
+              }
+
+              $('#checkout-delivery-form').children().find('input:radio[data-id="' + defaultShippingOption + '"]').prop("checked", true);
+              return _context.abrupt("return", commerce_api.applyShippingOption(defaultShippingOption));
+
+            case 26:
+              $('#checkout-delivery-form .dr-panel-edit__el').empty();
               displayAddressErrMsg({}, $errorMsgElem);
               return _context.abrupt("return", new Promise(function (resolve) {
                 return resolve(data);
               }));
 
-            case 20:
+            case 29:
             case "end":
               return _context.stop();
           }
@@ -2983,7 +2993,6 @@ var CheckoutModule = function ($) {
     getAddress: getAddress,
     displayAddressErrMsg: displayAddressErrMsg,
     displayCartAddress: displayCartAddress,
-    setShippingOptions: setShippingOptions,
     preselectShippingOption: preselectShippingOption,
     applyPaymentAndSubmitCart: applyPaymentAndSubmitCart
   };
@@ -3129,7 +3138,6 @@ jQuery(document).ready(function ($) {
         return CheckoutModule.preselectShippingOption(data);
       }).then(function (data) {
         $button.removeClass('sending').blur();
-        CheckoutModule.setShippingOptions(data.cart);
         var $section = $('.dr-checkout__shipping');
         CheckoutModule.displayCartAddress(data.cart.shippingAddress, $section.find('.dr-panel-result__text'));
 
@@ -3172,14 +3180,13 @@ jQuery(document).ready(function ($) {
         return commerce_api.getCart({
           expand: 'all'
         });
-      }).then(function (data) {
-        // Still needs to apply shipping option once again or the value will be rolled back after updateCart (API's bug)
+      }) // Still needs to apply shipping option once again or the value will be rolled back after updateCart (API's bug)
+      .then(function (data) {
         return drgc_params.cart.cart.hasPhysicalProduct ? CheckoutModule.preselectShippingOption(data) : new Promise(function (resolve) {
           return resolve(data);
         });
       }).then(function (data) {
         $button.removeClass('sending').blur();
-        CheckoutModule.setShippingOptions(data.cart);
         var $section = $('.dr-checkout__billing');
         CheckoutModule.displayCartAddress(data.cart.billingAddress, $section.find('.dr-panel-result__text'));
 
@@ -3223,10 +3230,12 @@ jQuery(document).ready(function ($) {
     $('form#checkout-delivery-form').on('change', 'input[type="radio"]', function () {
       var $form = $('form#checkout-delivery-form');
       var shippingOptionId = $form.children().find('input:radio:checked').first().data('id');
+      $('.dr-summary').addClass('dr-loading');
       commerce_api.applyShippingOption(shippingOptionId).then(function (data) {
         checkout_utils.updateSummaryPricing(data.cart);
       })["catch"](function (jqXHR) {
         CheckoutModule.displayAddressErrMsg(jqXHR, $form.find('.dr-err-field'));
+        $('.dr-summary').removeClass('dr-loading');
       });
     });
     $('form#checkout-payment-form').on('submit', function (e) {
