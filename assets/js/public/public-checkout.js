@@ -199,67 +199,42 @@ const CheckoutModule = (($) => {
         $target.text(addressArr.join(', '));
     };
 
-    const setShippingOptions = (cart) => {
-        const freeShipping = cart.pricing.shippingAndHandling.value === 0;
-        const shippingOptionId = cart.shippingMethod.code;
-        const shippingOptions = cart.shippingOptions.shippingOption || [];
-
-        if (shippingOptions.length) {
-            $.each(shippingOptions, (index, option) => {
-                if ($('#shipping-option-' + option.id).length) return;
-
-                const html = `
-                    <div class="field-radio">
-                        <input type="radio"
-                            name="selector"
-                            id="shipping-option-${option.id}"
-                            data-cost="${option.formattedCost}"
-                            data-id="${option.id}"
-                            data-desc="${option.description}"
-                            >
-                        <label for="shipping-option-${option.id}">
-                            <span>
-                                ${option.description}
-                            </span>
-                            <span class="black">
-                                ${freeShipping ? drgc_params.translations.free_label : option.formattedCost}
-                            </span>
-                        </label>
-                    </div>
-                `;
-
-                $('form#checkout-delivery-form .dr-panel-edit__el').append(html);
-            });
-
-            $('form#checkout-delivery-form').children().find('input:radio[data-id="' + shippingOptionId + '"]').prop("checked", true);
-        } else {
-            $('form#checkout-delivery-form .dr-panel-edit__el').empty();
-        }
-    };
-
     const preselectShippingOption = async (data) => {
         const $errorMsgElem = $('#checkout-delivery-form > div.dr-err-field');
-        const defaultShippingOption = data.cart.shippingMethod.code;
+        let defaultShippingOption = data.cart.shippingMethod.code;
         let shippingOptions = data.cart.shippingOptions.shippingOption || [];
+        let defaultExists = false;
 
         $('#checkout-delivery-form > button[type="submit"]').prop('disabled', (shippingOptions.length === 0));
 
         if (shippingOptions.length) {
             $errorMsgElem.text('').hide();
 
-            shippingOptions = shippingOptions.map((option) => {
-                return option.id;
-            });
+            for (let index = 0; index < shippingOptions.length; index++) {
+                const option = shippingOptions[index];
+
+                if (option.id === defaultShippingOption) {
+                    defaultExists = true;
+                }
+
+                if ($('#shipping-option-' + option.id).length) continue;
+
+                const res = await DRCommerceApi.applyShippingOption(option.id);
+                const freeShipping = res.cart.pricing.shippingAndHandling.value === 0;
+
+                CheckoutUtils.setShippingOption(option, freeShipping);
+            }
 
             // If default shipping option is not in the list, then pre-select the 1st one
-            if (shippingOptions.indexOf(defaultShippingOption) === -1) {
-                const res = await DRCommerceApi.applyShippingOption(shippingOptions[0]);
-                CheckoutUtils.updateSummaryPricing(res.cart);
-                return res;
-            } else {
-                return new Promise(resolve => resolve(data));
+            if (!defaultExists) {
+                defaultShippingOption = shippingOptions[0].id;   
             }
+
+            $('#checkout-delivery-form').children().find('input:radio[data-id="' + defaultShippingOption + '"]').prop("checked", true);  
+
+            return DRCommerceApi.applyShippingOption(defaultShippingOption);
         } else {
+            $('#checkout-delivery-form .dr-panel-edit__el').empty();
             displayAddressErrMsg({}, $errorMsgElem);
             return new Promise(resolve => resolve(data));
         }
@@ -292,7 +267,6 @@ const CheckoutModule = (($) => {
         getAddress,
         displayAddressErrMsg,
         displayCartAddress,
-        setShippingOptions,
         preselectShippingOption,
         applyPaymentAndSubmitCart
     };
@@ -435,25 +409,26 @@ jQuery(document).ready(($) => {
                 });
             }
 
-            DRCommerceApi.updateCartShippingAddress({expand: 'all'}, cartRequest).then(() => DRCommerceApi.getCart({expand: 'all'})).then((data) => {
-                return CheckoutModule.preselectShippingOption(data);
-            }).then((data) => {
-                $button.removeClass('sending').blur();
-                CheckoutModule.setShippingOptions(data.cart);
+            DRCommerceApi.updateCartShippingAddress({expand: 'all'}, cartRequest)
+                .then(() => DRCommerceApi.getCart({expand: 'all'}))
+                .then(data => CheckoutModule.preselectShippingOption(data))
+                .then((data) => {
+                    $button.removeClass('sending').blur();
 
-                const $section = $('.dr-checkout__shipping');
-                CheckoutModule.displayCartAddress(data.cart.shippingAddress, $section.find('.dr-panel-result__text'));
+                    const $section = $('.dr-checkout__shipping');
+                    CheckoutModule.displayCartAddress(data.cart.shippingAddress, $section.find('.dr-panel-result__text'));
 
-                if ($('.dr-checkout__el').index($section) > finishedSectionIdx) {
-                    finishedSectionIdx = $('.dr-checkout__el').index($section);
-                }
+                    if ($('.dr-checkout__el').index($section) > finishedSectionIdx) {
+                        finishedSectionIdx = $('.dr-checkout__el').index($section);
+                    }
 
-                CheckoutModule.moveToNextSection($section);
-                CheckoutUtils.updateSummaryPricing(data.cart);
-            }).catch((jqXHR) => {
-                $button.removeClass('sending').blur();
-                CheckoutModule.displayAddressErrMsg(jqXHR, $form.find('.dr-err-field'));
-            });
+                    CheckoutModule.moveToNextSection($section);
+                    CheckoutUtils.updateSummaryPricing(data.cart);
+                })
+                .catch((jqXHR) => {
+                    $button.removeClass('sending').blur();
+                    CheckoutModule.displayAddressErrMsg(jqXHR, $form.find('.dr-err-field'));
+                });
         });
 
         $('#checkout-billing-form').on('submit', function(e) {
@@ -483,29 +458,32 @@ jQuery(document).ready(($) => {
                 }
             }
 
-            DRCommerceApi.updateCartBillingAddress({expand: 'all'}, cartRequest).then(() => DRCommerceApi.getCart({expand: 'all'})).then((data) => {
+            DRCommerceApi.updateCartBillingAddress({expand: 'all'}, cartRequest)
+                .then(() => DRCommerceApi.getCart({expand: 'all'}))
                 // Still needs to apply shipping option once again or the value will be rolled back after updateCart (API's bug)
-                return drgc_params.cart.cart.hasPhysicalProduct ? 
-                    CheckoutModule.preselectShippingOption(data) :
-                    new Promise(resolve => resolve(data));
-            }).then((data) => {
-                $button.removeClass('sending').blur();
-                CheckoutModule.setShippingOptions(data.cart);
+                .then((data) => {
+                    return drgc_params.cart.cart.hasPhysicalProduct ? 
+                        CheckoutModule.preselectShippingOption(data) :
+                        new Promise(resolve => resolve(data));
+                })
+                .then((data) => {
+                    $button.removeClass('sending').blur();
 
-                const $section = $('.dr-checkout__billing');
+                    const $section = $('.dr-checkout__billing');
 
-                CheckoutModule.displayCartAddress(data.cart.billingAddress, $section.find('.dr-panel-result__text'));
+                    CheckoutModule.displayCartAddress(data.cart.billingAddress, $section.find('.dr-panel-result__text'));
 
-                if ($('.dr-checkout__el').index($section) > finishedSectionIdx) {
-                    finishedSectionIdx = $('.dr-checkout__el').index($section);
-                }
+                    if ($('.dr-checkout__el').index($section) > finishedSectionIdx) {
+                        finishedSectionIdx = $('.dr-checkout__el').index($section);
+                    }
 
-                CheckoutModule.moveToNextSection($section);
-                CheckoutUtils.updateSummaryPricing(data.cart);
-            }).catch((jqXHR) => {
-                $button.removeClass('sending').blur();
-                CheckoutModule.displayAddressErrMsg(jqXHR, $form.find('.dr-err-field'));
-            });
+                    CheckoutModule.moveToNextSection($section);
+                    CheckoutUtils.updateSummaryPricing(data.cart);
+                })
+                .catch((jqXHR) => {
+                    $button.removeClass('sending').blur();
+                    CheckoutModule.displayAddressErrMsg(jqXHR, $form.find('.dr-err-field'));
+                });
         });
 
         // Submit delivery form
@@ -519,35 +497,42 @@ jQuery(document).ready(($) => {
 
             $form.find('.dr-err-field').hide();
 
-            DRCommerceApi.applyShippingOption(shippingOptionId).then((data) => {
-                const $section = $('.dr-checkout__delivery');
-                const freeShipping = data.cart.pricing.shippingAndHandling.value === 0;
-                const resultText = `${$input.data('desc')} ${freeShipping ? drgc_params.translations.free_label : $input.data('cost')}`;
+            DRCommerceApi.applyShippingOption(shippingOptionId)
+                .then((data) => {
+                    const $section = $('.dr-checkout__delivery');
+                    const freeShipping = data.cart.pricing.shippingAndHandling.value === 0;
+                    const resultText = `${$input.data('desc')} ${freeShipping ? drgc_params.translations.free_label : $input.data('cost')}`;
 
-                $button.removeClass('sending').blur();
-                $section.find('.dr-panel-result__text').text(resultText);
+                    $button.removeClass('sending').blur();
+                    $section.find('.dr-panel-result__text').text(resultText);
 
-                if ($('.dr-checkout__el').index($section) > finishedSectionIdx) {
-                    finishedSectionIdx = $('.dr-checkout__el').index($section);
-                }
+                    if ($('.dr-checkout__el').index($section) > finishedSectionIdx) {
+                        finishedSectionIdx = $('.dr-checkout__el').index($section);
+                    }
 
-                CheckoutModule.moveToNextSection($section);
-                CheckoutUtils.updateSummaryPricing(data.cart);
-            }).catch((jqXHR) => {
-                $button.removeClass('sending').blur();
-                CheckoutModule.displayAddressErrMsg(jqXHR, $form.find('.dr-err-field'));
-            });
+                    CheckoutModule.moveToNextSection($section);
+                    CheckoutUtils.updateSummaryPricing(data.cart);
+                })
+                .catch((jqXHR) => {
+                    $button.removeClass('sending').blur();
+                    CheckoutModule.displayAddressErrMsg(jqXHR, $form.find('.dr-err-field'));
+                });
         });
 
         $('form#checkout-delivery-form').on('change', 'input[type="radio"]', function() {
             const $form = $('form#checkout-delivery-form');
             const shippingOptionId = $form.children().find('input:radio:checked').first().data('id');
             
-            DRCommerceApi.applyShippingOption(shippingOptionId).then((data) => {
-                CheckoutUtils.updateSummaryPricing(data.cart);
-            }).catch((jqXHR) => {
-                CheckoutModule.displayAddressErrMsg(jqXHR, $form.find('.dr-err-field'));
-            });
+            $('.dr-summary').addClass('dr-loading');
+            
+            DRCommerceApi.applyShippingOption(shippingOptionId)
+                .then((data) => {
+                    CheckoutUtils.updateSummaryPricing(data.cart);
+                })
+                .catch((jqXHR) => {
+                    CheckoutModule.displayAddressErrMsg(jqXHR, $form.find('.dr-err-field'));
+                    $('.dr-summary').removeClass('dr-loading');
+                });
         });
 
         $('form#checkout-payment-form').on('submit', function(e) {
