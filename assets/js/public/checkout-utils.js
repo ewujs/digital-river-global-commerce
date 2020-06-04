@@ -113,6 +113,7 @@ const CheckoutUtils = (($, params) => {
 
     $('div.dr-summary__tax > .item-value').text(formattedTax);
     $('div.dr-summary__total > .total-value').text(formattedOrderTotal);
+    $('.dr-summary').removeClass('dr-loading');
   };
 
   const getEntityCode = () => {
@@ -188,6 +189,26 @@ const CheckoutUtils = (($, params) => {
     return (jqXHR && jqXHR.responseJSON && jqXHR.responseJSON.errors) ? jqXHR.responseJSON.errors.error[0].description : '';
   };
 
+  const setShippingOption = (option, freeShipping) => {
+    const html = `
+      <div class="field-radio">
+        <input type="radio"
+          name="selector"
+          id="shipping-option-${option.id}"
+          data-cost="${option.formattedCost}"
+          data-id="${option.id}"
+          data-desc="${option.description}"
+        >
+        <label for="shipping-option-${option.id}">
+          <span>${option.description}</span>
+          <span class="black">${freeShipping ? drgc_params.translations.free_label : option.formattedCost}</span>
+        </label>
+      </div>
+    `;
+
+    $('#checkout-delivery-form .dr-panel-edit__el').append(html);
+  };
+
   return {
     createDisplayItems,
     createShippingOptions,
@@ -205,7 +226,8 @@ const CheckoutUtils = (($, params) => {
     getEntityCode,
     getCompliance,
     resetFormSubmitButton,
-    getAjaxErrorMessage
+    getAjaxErrorMessage,
+    setShippingOption
   };
 })(jQuery, drgc_params);
 
