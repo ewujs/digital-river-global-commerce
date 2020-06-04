@@ -3439,7 +3439,7 @@ jQuery(document).ready(function ($) {
           var payPalPayload = {
             'type': 'payPal',
             'amount': cart.pricing.orderTotal.value,
-            'currency': 'USD',
+            'currency': cart.pricing.orderTotal.currency,
             'payPal': {
               'returnUrl': window.location.href + '?ppsuccess=true',
               'cancelUrl': window.location.href + '?ppcancel=true',
