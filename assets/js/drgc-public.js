@@ -1855,24 +1855,15 @@ var CartModule = function ($) {
       if (qty > min) $qty.val(qty - step);
     }
 
-    $lineItem.addClass('dr-loading');
-    $('.dr-summary').addClass('dr-loading');
+    $('.dr-cart__content').addClass('dr-loading');
     commerce_api.updateLineItem(lineItemID, {
       quantity: $qty.val()
     }).then(function (res) {
       renderSingleLineItem(res.lineItem.pricing, $lineItem);
-      $lineItem.removeClass('dr-loading');
-    }).then(function () {
-      return commerce_api.getCart({
-        expand: 'all'
-      });
-    }).then(function (res) {
-      renderSummary(res.cart.pricing, hasPhysicalProduct);
-      $('.dr-summary').removeClass('dr-loading');
+      CartModule.fetchFreshCart();
     })["catch"](function (jqXHR) {
       checkout_utils.apiErrorHandler(jqXHR);
-      $lineItem.removeClass('dr-loading');
-      $('.dr-summary').removeClass('dr-loading');
+      $('.dr-cart__content').removeClass('dr-loading');
     });
   };
 
