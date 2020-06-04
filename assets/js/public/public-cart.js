@@ -71,22 +71,15 @@ const CartModule = (($) => {
       if (qty > min) $qty.val(qty - step);
     }
 
-    $lineItem.addClass('dr-loading');
-    $('.dr-summary').addClass('dr-loading');
+    $('.dr-cart__content').addClass('dr-loading');
     DRCommerceApi.updateLineItem(lineItemID, { quantity: $qty.val() })
       .then((res) => {
         renderSingleLineItem(res.lineItem.pricing, $lineItem);
-        $lineItem.removeClass('dr-loading');
-      })
-      .then(() => DRCommerceApi.getCart({ expand: 'all' }))
-      .then((res) => {
-        renderSummary(res.cart.pricing, hasPhysicalProduct);
-        $('.dr-summary').removeClass('dr-loading');
+        CartModule.fetchFreshCart();
       })
       .catch((jqXHR) => {
         CheckoutUtils.apiErrorHandler(jqXHR);
-        $lineItem.removeClass('dr-loading');
-        $('.dr-summary').removeClass('dr-loading');
+        $('.dr-cart__content').removeClass('dr-loading');
       });
   };
 
