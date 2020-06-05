@@ -3266,6 +3266,7 @@ jQuery(document).ready(function ($) {
             email: addressPayload.billing.emailAddress,
             address: {
               line1: addressPayload.billing.line1,
+              line2: addressPayload.billing.line2,
               city: addressPayload.billing.city,
               state: addressPayload.billing.countrySubdivision,
               country: addressPayload.billing.country,
@@ -3439,12 +3440,14 @@ jQuery(document).ready(function ($) {
           var payPalPayload = {
             'type': 'payPal',
             'amount': cart.pricing.orderTotal.value,
-            'currency': 'USD',
+            'currency': cart.pricing.orderTotal.currency,
             'payPal': {
               'returnUrl': window.location.href + '?ppsuccess=true',
               'cancelUrl': window.location.href + '?ppcancel=true',
               'items': payPalItems,
               'taxAmount': cart.pricing.tax.value,
+              'shippingAmount': cart.pricing.shippingAndHandling.value,
+              'amountsEstimated': true,
               'requestShipping': requestShipping
             }
           };
