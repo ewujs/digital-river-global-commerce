@@ -141,7 +141,7 @@ const CheckoutModule = (($) => {
         });
 
         payload[addressType].emailAddress = email;
-        
+
         if (payload[addressType].country !== 'US') {
             payload[addressType].countrySubdivision = '';
         }
@@ -227,10 +227,10 @@ const CheckoutModule = (($) => {
 
             // If default shipping option is not in the list, then pre-select the 1st one
             if (!defaultExists) {
-                defaultShippingOption = shippingOptions[0].id;   
+                defaultShippingOption = shippingOptions[0].id;
             }
 
-            $('#checkout-delivery-form').children().find('input:radio[data-id="' + defaultShippingOption + '"]').prop("checked", true);  
+            $('#checkout-delivery-form').children().find('input:radio[data-id="' + defaultShippingOption + '"]').prop("checked", true);
 
             return DRCommerceApi.applyShippingOption(defaultShippingOption);
         } else {
@@ -393,7 +393,7 @@ jQuery(document).ready(($) => {
             const isFormValid = CheckoutModule.validateAddress($form);
 
             if (!isFormValid) return;
-            
+
             addressPayload.shipping = CheckoutModule.buildAddressPayload($form);
             const cartRequest = {
                 address: addressPayload.shipping
@@ -441,7 +441,7 @@ jQuery(document).ready(($) => {
 
             if (!isFormValid) return;
 
-            addressPayload.billing = (billingSameAsShipping) ? Object.assign({}, addressPayload.shipping) : CheckoutModule.buildAddressPayload($form); 
+            addressPayload.billing = (billingSameAsShipping) ? Object.assign({}, addressPayload.shipping) : CheckoutModule.buildAddressPayload($form);
             const cartRequest = {
                 address: addressPayload.billing
             };
@@ -462,7 +462,7 @@ jQuery(document).ready(($) => {
                 .then(() => DRCommerceApi.getCart({expand: 'all'}))
                 // Still needs to apply shipping option once again or the value will be rolled back after updateCart (API's bug)
                 .then((data) => {
-                    return drgc_params.cart.cart.hasPhysicalProduct ? 
+                    return drgc_params.cart.cart.hasPhysicalProduct ?
                         CheckoutModule.preselectShippingOption(data) :
                         new Promise(resolve => resolve(data));
                 })
@@ -522,9 +522,9 @@ jQuery(document).ready(($) => {
         $('form#checkout-delivery-form').on('change', 'input[type="radio"]', function() {
             const $form = $('form#checkout-delivery-form');
             const shippingOptionId = $form.children().find('input:radio:checked').first().data('id');
-            
+
             $('.dr-summary').addClass('dr-loading');
-            
+
             DRCommerceApi.applyShippingOption(shippingOptionId)
                 .then((data) => {
                     CheckoutUtils.updateSummaryPricing(data.cart);
