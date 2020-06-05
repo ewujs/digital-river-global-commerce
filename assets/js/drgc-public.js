@@ -3439,12 +3439,14 @@ jQuery(document).ready(function ($) {
           var payPalPayload = {
             'type': 'payPal',
             'amount': cart.pricing.orderTotal.value,
-            'currency': 'USD',
+            'currency': cart.pricing.orderTotal.currency,
             'payPal': {
               'returnUrl': window.location.href + '?ppsuccess=true',
               'cancelUrl': window.location.href + '?ppcancel=true',
               'items': payPalItems,
               'taxAmount': cart.pricing.tax.value,
+              'shippingAmount': cart.pricing.shippingAndHandling.value,
+              'amountsEstimated': true,
               'requestShipping': requestShipping
             }
           };
