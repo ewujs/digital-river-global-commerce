@@ -3266,6 +3266,7 @@ jQuery(document).ready(function ($) {
             email: addressPayload.billing.emailAddress,
             address: {
               line1: addressPayload.billing.line1,
+              line2: addressPayload.billing.line2,
               city: addressPayload.billing.city,
               state: addressPayload.billing.countrySubdivision,
               country: addressPayload.billing.country,
