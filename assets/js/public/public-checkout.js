@@ -359,6 +359,8 @@ jQuery(document).ready(($) => {
             }
         }
 
+        $('#checkout-email-form button[type=submit]').prop('disabled', false);
+
         $('#checkout-email-form').on('submit', function(e) {
             e.preventDefault();
 

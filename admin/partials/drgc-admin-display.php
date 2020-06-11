@@ -14,6 +14,7 @@
 
 <div class="wrap">
     <h1><?php esc_html_e( get_admin_page_title(), 'digital-river-global-commerce' ); ?></h1>
+    <?php settings_errors(); ?>
     <form method="post" action="options.php">
         <?php
         settings_fields( $this->plugin_name );
